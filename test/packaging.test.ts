@@ -81,7 +81,7 @@ describe("playbook skills", () => {
 
   it.each(names)("%s carries frontmatter whose name matches its directory", (name) => {
     const text = readFileSync(join(skillsDir, name, "SKILL.md"), "utf8");
-    const front = /^---\n([\s\S]*?)\n---\n/.exec(text);
+    const front = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(text);
     expect(front).not.toBeNull();
     expect(front![1]).toContain(`name: ${name}`);
     expect(/^description: \S.*/m.test(front![1])).toBe(true);
