@@ -1,0 +1,14 @@
+{
+  "name": "camerata",
+  "version": "0.0.1",
+  "description": "Name reservation for Camerata — a multi-agent orchestration engine and playbooks for Claude Code and Codex CLI orchestrators. Full release in development.",
+  "license": "Apache-2.0",
+  "repository": {
+    "url": "https://github.com/dvause/camerata.git"
+  },
+  "author": "Dave Vause <dave@vauseware.com>",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": []
+}
