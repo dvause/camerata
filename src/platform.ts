@@ -8,7 +8,11 @@ import { delimiter, join } from "node:path";
 export const isWindows = process.platform === "win32";
 
 function resolveOnPath(cmd: string): string | null {
-  const exts = ["", ...(process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";")];
+  // Windows never executes extensionless files, so an extensionless candidate
+  // (e.g. a POSIX sh wrapper next to its .cmd twin) must not shadow the .cmd.
+  const exts = /\.[^\\/.]+$/.test(cmd)
+    ? [""]
+    : (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";");
   for (const dir of (process.env.PATH ?? "").split(delimiter)) {
     if (dir === "") continue;
     for (const ext of exts) {
