@@ -162,7 +162,11 @@ export function initRun(
     }
   }
 
-  for (const d of ["goals", "logs", "status"]) mkdirSync(join(runDir, d), { recursive: true });
+  // allow/ and commitignore/ are orchestrator-written and often empty; seeding
+  // them keeps every playbook from having to create the directory first.
+  for (const d of ["goals", "logs", "status", "allow", "commitignore"]) {
+    mkdirSync(join(runDir, d), { recursive: true });
+  }
 
   const now = new Date().toISOString();
   // Snapshot budget/timeout at init: a mid-run config edit cannot change a live run.

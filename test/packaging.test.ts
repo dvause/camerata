@@ -1,7 +1,15 @@
 // M3: install paths. The three manifests must agree on one version, and
 // setup-codex must be re-runnable without duplicating its config block.
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -56,6 +64,41 @@ describe("packaging manifests", () => {
   });
 });
 
+describe("playbook skills", () => {
+  const skillsDir = join(repoRoot, "skills");
+  const names = readdirSync(skillsDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name);
+
+  it("ships the four core playbooks", () => {
+    expect(names.sort()).toEqual([
+      "camerata-audit",
+      "camerata-build",
+      "camerata-plan",
+      "camerata-spec",
+    ]);
+  });
+
+  it.each(names)("%s carries frontmatter whose name matches its directory", (name) => {
+    const text = readFileSync(join(skillsDir, name, "SKILL.md"), "utf8");
+    const front = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(text);
+    expect(front).not.toBeNull();
+    expect(front![1]).toContain(`name: ${name}`);
+    expect(/^description: \S.*/m.test(front![1])).toBe(true);
+  });
+
+  // The porting rules: engine interactions by MCP tool name, never by the v1
+  // harness path or script names.
+  it.each(names)("%s references the engine by tool name, not v1 paths", (name) => {
+    for (const file of readdirSync(join(skillsDir, name), { recursive: true, encoding: "utf8" })) {
+      const path = join(skillsDir, name, file);
+      if (!file.endsWith(".md")) continue;
+      const text = readFileSync(path, "utf8");
+      expect(text, `${name}/${file}`).not.toMatch(/\$ORCH|maestro|orchestrate-init|codex-worker/);
+    }
+  });
+});
+
 describe("setup-codex", () => {
   it("adds the server block, leaving other sections intact", () => {
     const { toml, mode } = upsertServer('[mcp_servers.other]\ncommand = "x"\n', "[mcp_servers.camerata]\ncommand = \"npx\"\n");
@@ -89,6 +132,16 @@ describe("setup-codex", () => {
     const { version } = readJson("package.json");
     const first = setup();
     expect(first.mcpServer).toBe("added");
+    expect(first.skills.sort()).toEqual([
+      "camerata-audit",
+      "camerata-build",
+      "camerata-plan",
+      "camerata-spec",
+    ]);
+    expect(existsSync(join(first.skillsDir, "camerata-build", "SKILL.md"))).toBe(true);
+    expect(
+      existsSync(join(first.skillsDir, "camerata-build", "templates", "worker-goal.md")),
+    ).toBe(true);
     const toml = readFileSync(first.configFile, "utf8");
     expect(toml).toContain("[mcp_servers.camerata]");
     expect(toml).toContain(`camerata@${version}`);
