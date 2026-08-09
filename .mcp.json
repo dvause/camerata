@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "camerata": {
+      "command": "npx",
+      "args": ["-y", "camerata@0.0.1", "mcp"]
+    }
+  }
+}

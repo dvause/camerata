@@ -5,10 +5,12 @@ import { closeRun, cleanupRun } from "./close.js";
 import { loadConfig } from "./config.js";
 import { EngineError } from "./errors.js";
 import { dispatchWorker } from "./dispatch.js";
+import { doctor } from "./doctor.js";
 import { escalateTask } from "./escalate.js";
 import { collectFindings } from "./findings.js";
 import { integrateBranch } from "./integrate.js";
 import { initRun } from "./run.js";
+import { setupCodex } from "./setup-codex.js";
 import { workerStatus } from "./status.js";
 import { waitWorkers } from "./wait.js";
 import { workerMain } from "./_worker.js";
@@ -28,6 +30,9 @@ commands:
   escalate   --project P --task T
   close      --project P [--check] [--dry-run]
   cleanup    --project P [--branches] [--all-branches] [--force] [--dry-run]
+  doctor     probe git, both backend CLIs, and codex sandbox support
+  setup-codex  install skills + register the MCP server for the Codex CLI
+             [--dry-run]
   mcp        run the MCP server on stdio
 `;
 
@@ -181,6 +186,16 @@ async function main(): Promise<number> {
       });
       console.log(JSON.stringify(res, null, 2));
       return res.worktreesSkipped > 0 ? 1 : 0;
+    }
+    case "doctor": {
+      const report = await doctor(cfg);
+      console.log(JSON.stringify(report, null, 2));
+      return report.ok ? 0 : 1;
+    }
+    case "setup-codex": {
+      const v = opt(rest, { "dry-run": { type: "boolean" } });
+      out = setupCodex({ dryRun: Boolean(v["dry-run"]) });
+      break;
     }
     case "mcp": {
       const { runMcp } = await import("./mcp.js");

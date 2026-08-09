@@ -15,7 +15,8 @@
     "node": ">=18"
   },
   "files": [
-    "dist"
+    "dist",
+    "skills"
   ],
   "scripts": {
     "build": "tsc",

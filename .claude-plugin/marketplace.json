@@ -1,0 +1,14 @@
+{
+  "name": "camerata",
+  "owner": {
+    "name": "Dave Vause",
+    "email": "dave@vauseware.com"
+  },
+  "plugins": [
+    {
+      "name": "camerata",
+      "source": "./",
+      "description": "Multi-agent orchestration engine and playbooks: bounded workers in isolated git worktrees, nothing merged on a worker's self-report."
+    }
+  ]
+}

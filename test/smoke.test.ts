@@ -155,7 +155,9 @@ beforeAll(() => {
   shims = join(root, "shims");
   repo = join(root, "target-repo");
   goalDir = join(root, "goals");
-  for (const d of [home, shims, repo, goalDir]) mkdirSync(d, { recursive: true });
+  for (const d of [home, shims, repo, goalDir, join(root, "no-tools")]) {
+    mkdirSync(d, { recursive: true });
+  }
   writeFileSync(join(root, "gitconfig-empty"), "");
   installShim("codex");
   installShim("claude");
@@ -338,6 +340,30 @@ describe("engine smoke (hermetic)", () => {
   it("target repo stays pristine: no files written, only refs", () => {
     expect(gitOut(["status", "--porcelain"])).toBe("");
     expect(gitOut(["rev-parse", "--verify", "agent/w1"])).toBeTruthy();
+  });
+
+  it("doctor probes git and both backends; codex refuses on native Windows", () => {
+    const r = cli(["doctor"]);
+    expect(r.status).toBe(0);
+    expect(r.json.ok).toBe(true);
+    expect(r.json.git.available).toBe(true);
+    expect(r.json.dataDir).toBe(home);
+    expect(r.json.backends.claude.available).toBe(true);
+    expect(r.json.backends.codex.available).toBe(!isWindows);
+    if (isWindows) expect(r.json.backends.codex.reason).toMatch(/sandbox is unavailable/);
+  });
+
+  it("doctor reports a missing backend CLI without a stack trace", () => {
+    const bare = env();
+    for (const k of Object.keys(bare)) {
+      if (k.toUpperCase() === "PATH") bare[k] = join(root, "no-tools");
+    }
+    const r = spawnSync(process.execPath, [cliJs, "doctor"], { encoding: "utf8", env: bare });
+    expect(r.status).toBe(1);
+    const report = JSON.parse(r.stdout);
+    expect(report.ok).toBe(false);
+    expect(report.backends.claude.available).toBe(false);
+    expect(report.backends.claude.reason).toBe("claude CLI not found on PATH");
   });
 });
 

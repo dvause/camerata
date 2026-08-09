@@ -1,0 +1,13 @@
+{
+  "name": "camerata",
+  "description": "Multi-agent orchestration engine and playbooks: bounded workers in isolated git worktrees, nothing merged on a worker's self-report.",
+  "version": "0.0.1",
+  "author": {
+    "name": "Dave Vause",
+    "email": "dave@vauseware.com"
+  },
+  "homepage": "https://github.com/dvause/camerata",
+  "repository": "https://github.com/dvause/camerata",
+  "license": "Apache-2.0",
+  "keywords": ["orchestration", "agents", "worktree", "mcp"]
+}
