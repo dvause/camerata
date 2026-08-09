@@ -1,11 +1,13 @@
 // Hermetic end-to-end smoke: fake codex/claude shims on PATH, no network, no
 // API spend. Drives the built CLI (dist/) exactly as an orchestrator would.
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import {
+  appendFileSync,
   chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -48,6 +50,11 @@ process.stdin.on("end", () => {
   if (model === "bogus") { console.error("model_not_found: model bogus does not exist"); process.exit(1); }
   if (prompt.includes("SHIM:FAIL")) { console.error("shim: crashing as instructed"); process.exit(1); }
   if (prompt.includes("SHIM:STALL")) { setTimeout(() => process.exit(0), 120000); return; }
+  if (prompt.includes("SHIM:FINDINGS")) {
+    fs.writeFileSync(path.join(dir, "FINDINGS.md"), "## F1 shim finding\\n\\nEvidence here.\\n");
+    console.log("findings written");
+    process.exit(0);
+  }
   fs.writeFileSync(path.join(dir, "shim-output.txt"), "shim did work\\n");
   console.log("worker done");
   console.log("tokens used");
@@ -66,7 +73,13 @@ function installShim(name: string): void {
 }
 
 function env(): NodeJS.ProcessEnv {
-  const e: NodeJS.ProcessEnv = { ...process.env, CAMERATA_HOME: home };
+  const e: NodeJS.ProcessEnv = {
+    ...process.env,
+    CAMERATA_HOME: home,
+    // hermetic: ambient git identity/config must not leak into the run
+    GIT_CONFIG_GLOBAL: join(root, "gitconfig-empty"),
+    GIT_CONFIG_SYSTEM: join(root, "gitconfig-empty"),
+  };
   const pathKey = Object.keys(e).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
   e[pathKey] = shims + delimiter + (e[pathKey] ?? "");
   return e;
@@ -143,6 +156,7 @@ beforeAll(() => {
   repo = join(root, "target-repo");
   goalDir = join(root, "goals");
   for (const d of [home, shims, repo, goalDir]) mkdirSync(d, { recursive: true });
+  writeFileSync(join(root, "gitconfig-empty"), "");
   installShim("codex");
   installShim("claude");
   const g = (args: string[]) => {
@@ -325,4 +339,176 @@ describe("engine smoke (hermetic)", () => {
     expect(gitOut(["status", "--porcelain"])).toBe("");
     expect(gitOut(["rev-parse", "--verify", "agent/w1"])).toBeTruthy();
   });
+});
+
+// Speak newline-delimited JSON-RPC to `camerata mcp`, return responses by id.
+function mcpCall(requests: Record<string, unknown>[]): Promise<Record<number, any>> {
+  return new Promise((res, rej) => {
+    const child = spawn(process.execPath, [cliJs, "mcp"], { env: env() });
+    const wanted = new Set(requests.map((r) => r.id).filter((id) => id !== undefined));
+    const got: Record<number, any> = {};
+    let buf = "";
+    const finish = (err?: Error) => {
+      child.kill();
+      err ? rej(err) : res(got);
+    };
+    child.stdout.on("data", (d) => {
+      buf += d;
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (line === "") continue;
+        const msg = JSON.parse(line);
+        if (msg.id !== undefined && wanted.has(msg.id)) {
+          got[msg.id] = msg;
+          if (Object.keys(got).length === wanted.size) finish();
+        }
+      }
+    });
+    child.on("error", (e) => finish(e));
+    setTimeout(() => finish(new Error("mcp timeout")), 20_000).unref();
+    for (const r of requests) child.stdin.write(JSON.stringify(r) + "\n");
+  });
+}
+
+describe("integrate / collect / escalate / close (M2)", () => {
+  it("integrate review: diffstat + commit list vs recorded base", () => {
+    const r = cli(["integrate", "--project", "smoke", "--branch", "agent/w1", "--mode", "review"]);
+    expect(r.status).toBe(0);
+    expect(r.json.diffstat).toContain("shim-output.txt");
+    expect(r.json.commits).toHaveLength(1);
+    expect(r.json.base).toBe(baseSha);
+  });
+
+  it("integrate refuses an unknown branch", () => {
+    const r = cli(["integrate", "--project", "smoke", "--branch", "agent/nope", "--mode", "review"]);
+    expect(r.status).toBe(1);
+    expect(r.error.code).toBe("E_BRANCH_NOT_FOUND");
+  });
+
+  it("integrate merge: one branch at a time into integration/<project>", () => {
+    const r1 = cli(["integrate", "--project", "smoke", "--branch", "agent/w1", "--mode", "merge"]);
+    expect(r1.status).toBe(0);
+    expect(r1.json.integration).toBe("integration/smoke");
+    const r2 = cli(["integrate", "--project", "smoke", "--branch", "agent/w4", "--mode", "merge"]);
+    expect(r2.status).toBe(0);
+    const anc = spawnSync(
+      "git",
+      ["-C", repo, "merge-base", "--is-ancestor", "agent/w1", "integration/smoke"],
+    );
+    expect(anc.status).toBe(0);
+  }, 90_000);
+
+  it("collect findings copies each worker's output to the findings bus", () => {
+    const d = dispatch("w6", "SHIM:FINDINGS — report only.", []);
+    expect(d.status).toBe(0);
+    expect(waitFor("w6").json.workers[0].state).toBe("done");
+    const r = cli(["collect", "--project", "smoke"]);
+    expect(r.status).toBe(0);
+    const w6 = r.json.collected.find((c: any) => c.name === "w6");
+    expect(w6.sections).toBe(1);
+    expect(existsSync(join(runDir, "findings", "w6.findings.md"))).toBe(true);
+    expect(r.json.skipped.length).toBeGreaterThan(0);
+  }, 90_000);
+
+  it("escalate writes the report with every attempt and archived diffs", () => {
+    const r = cli(["escalate", "--project", "smoke", "--task", "t9"]);
+    expect(r.status).toBe(0);
+    expect(r.json.attempts).toBe(3);
+    const report = readFileSync(r.json.path, "utf8");
+    expect(report).toContain("# Escalation: t9");
+    expect(report).toContain("### attempt 1 — w9-1");
+    expect(report).toContain("### attempt 3 — w9-3");
+    expect(report).toContain("reason=spawn-crash");
+    expect(existsSync(join(runDir, "archive", "w9-1.attempt.diff"))).toBe(true);
+  });
+
+  it("escalate refuses a task with no recorded attempts", () => {
+    const r = cli(["escalate", "--project", "smoke", "--task", "never-ran"]);
+    expect(r.status).toBe(1);
+    expect(r.error.code).toBe("E_NO_ATTEMPTS");
+  });
+
+  it("mcp server lists the 9 tools and serves worker_status", async () => {
+    const got = await mcpCall([
+      {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2024-11-05",
+          capabilities: {},
+          clientInfo: { name: "smoke", version: "0" },
+        },
+      },
+      { jsonrpc: "2.0", method: "notifications/initialized" },
+      { jsonrpc: "2.0", id: 2, method: "tools/list" },
+      {
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: { name: "worker_status", arguments: { project: "smoke" } },
+      },
+    ]);
+    expect(got[1].result.serverInfo.name).toBe("camerata");
+    expect(got[2].result.tools.map((t: any) => t.name).sort()).toEqual([
+      "cleanup_run",
+      "close_run",
+      "collect_findings",
+      "dispatch_worker",
+      "escalate_task",
+      "init_run",
+      "integrate_branch",
+      "wait_workers",
+      "worker_status",
+    ]);
+    const status = JSON.parse(got[3].result.content[0].text);
+    expect(status.workers.find((w: any) => w.name === "w1").state).toBe("done");
+  }, 30_000);
+
+  it("close refuses without a final summary; check reports residuals", () => {
+    const chk = cli(["close", "--project", "smoke", "--check"]);
+    expect(chk.status).toBe(1);
+    expect(chk.json.clean).toBe(false);
+    expect(chk.json.residuals.join("\n")).toContain("final summary");
+    const cl = cli(["close", "--project", "smoke"]);
+    expect(cl.status).toBe(1);
+    expect(cl.error.code).toBe("E_NO_SUMMARY");
+  });
+
+  it("close: archives evidence, tears down, verifies zero residuals", () => {
+    appendFileSync(
+      join(runDir, "progress.md"),
+      "\n## Final summary\n\nw1 and w4 integrated; t9 escalated; rest rejected.\n",
+    );
+    const dry = cli(["close", "--project", "smoke", "--dry-run"]);
+    expect(dry.status).toBe(0);
+    expect(dry.json.dryRun).toBe(true);
+
+    const r = cli(["close", "--project", "smoke"]);
+    expect(r.status).toBe(0);
+    expect(r.json.closed).toBe(true);
+
+    expect(readdirSync(runDir).filter((e) => e.startsWith("wt-"))).toEqual([]);
+    const w1ref = spawnSync("git", ["-C", repo, "show-ref", "--verify", "refs/heads/agent/w1"]);
+    expect(w1ref.status).not.toBe(0);
+    expect(gitOut(["rev-parse", "--verify", "integration/smoke"])).toBeTruthy();
+
+    // evidence archived before teardown
+    expect(existsSync(join(runDir, "archive", "w6.worktree.diff"))).toBe(true);
+    if (!isWindows) {
+      // w2 committed but was never merged — archived as a rejected patch
+      expect(existsSync(join(runDir, "archive", "w2.rejected.patch"))).toBe(true);
+    }
+
+    const progress = readFileSync(join(runDir, "progress.md"), "utf8");
+    expect(progress).toContain("- usage: workers=");
+    expect(progress).toContain("- closed:");
+    expect(gitOut(["status", "--porcelain", "--untracked-files=no"])).toBe("");
+
+    const chk = cli(["close", "--project", "smoke", "--check"]);
+    expect(chk.status).toBe(0);
+    expect(chk.json.clean).toBe(true);
+  }, 90_000);
 });
