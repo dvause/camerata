@@ -73,7 +73,13 @@ function installShim(name: string): void {
 }
 
 function env(): NodeJS.ProcessEnv {
-  const e: NodeJS.ProcessEnv = { ...process.env, CAMERATA_HOME: home };
+  const e: NodeJS.ProcessEnv = {
+    ...process.env,
+    CAMERATA_HOME: home,
+    // hermetic: ambient git identity/config must not leak into the run
+    GIT_CONFIG_GLOBAL: join(root, "gitconfig-empty"),
+    GIT_CONFIG_SYSTEM: join(root, "gitconfig-empty"),
+  };
   const pathKey = Object.keys(e).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
   e[pathKey] = shims + delimiter + (e[pathKey] ?? "");
   return e;
@@ -150,6 +156,7 @@ beforeAll(() => {
   repo = join(root, "target-repo");
   goalDir = join(root, "goals");
   for (const d of [home, shims, repo, goalDir]) mkdirSync(d, { recursive: true });
+  writeFileSync(join(root, "gitconfig-empty"), "");
   installShim("codex");
   installShim("claude");
   const g = (args: string[]) => {

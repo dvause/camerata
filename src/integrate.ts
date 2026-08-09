@@ -52,8 +52,21 @@ export function integrateBranch(cfg: Config, opts: IntegrateOpts) {
     git(["-C", repo, "checkout", "-b", integration, base]);
   }
 
+  // Own identity: the merge must not depend on ambient git config
   const merge = git(
-    ["-C", repo, "merge", "--no-ff", "-m", `merge(${opts.branch}): integrate worker branch`, opts.branch],
+    [
+      "-C",
+      repo,
+      "-c",
+      "user.email=camerata@local",
+      "-c",
+      "user.name=camerata-integrate",
+      "merge",
+      "--no-ff",
+      "-m",
+      `merge(${opts.branch}): integrate worker branch`,
+      opts.branch,
+    ],
     { allowFail: true },
   );
   if (merge.status !== 0) {
