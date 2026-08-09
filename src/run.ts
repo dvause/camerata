@@ -42,8 +42,15 @@ export interface ManifestRow {
   launchedAt: string;
 }
 
-export function git(args: string[], opts: { cwd?: string; allowFail?: boolean } = {}) {
-  const r = spawnSync("git", args, { cwd: opts.cwd, encoding: "utf8" });
+export function git(
+  args: string[],
+  opts: { cwd?: string; allowFail?: boolean; env?: NodeJS.ProcessEnv } = {},
+) {
+  const r = spawnSync("git", args, {
+    cwd: opts.cwd,
+    encoding: "utf8",
+    env: opts.env ? { ...process.env, ...opts.env } : undefined,
+  });
   if (r.error) fail("E_GIT", `git not runnable: ${r.error.message}`);
   if (r.status !== 0 && !opts.allowFail) {
     fail("E_GIT", `git ${args.join(" ")} failed: ${(r.stderr ?? "").trim()}`);

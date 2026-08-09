@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 // Thin CLI over the engine library; subcommands mirror the MCP tools 1:1.
 import { parseArgs } from "node:util";
+import { closeRun, cleanupRun } from "./close.js";
 import { loadConfig } from "./config.js";
 import { EngineError } from "./errors.js";
 import { dispatchWorker } from "./dispatch.js";
+import { escalateTask } from "./escalate.js";
+import { collectFindings } from "./findings.js";
+import { integrateBranch } from "./integrate.js";
 import { initRun } from "./run.js";
 import { workerStatus } from "./status.js";
 import { waitWorkers } from "./wait.js";
@@ -12,13 +16,19 @@ import { workerMain } from "./_worker.js";
 const USAGE = `usage: camerata <command> [options]
 
 commands:
-  init      --project P --repo DIR [--resume]
-  dispatch  --project P --name N --goal-file F [--backend codex|claude]
-            [--loe low|medium|high|xhigh] [--model M] [--reasoning R]
-            [--commit] [--task T] [--attempt N] [--policy S]
-            [--timeout-s N] [--git-mode ro|none] [--base REF]
-  status    --project P
-  wait      --project P --timeout-s N [--workers a,b] [--mode any|all]
+  init       --project P --repo DIR [--resume]
+  dispatch   --project P --name N --goal-file F [--backend codex|claude]
+             [--loe low|medium|high|xhigh] [--model M] [--reasoning R]
+             [--commit] [--task T] [--attempt N] [--policy S]
+             [--timeout-s N] [--git-mode ro|none] [--base REF]
+  status     --project P
+  wait       --project P --timeout-s N [--workers a,b] [--mode any|all]
+  integrate  --project P --branch B --mode review|merge
+  collect    --project P [--file FINDINGS.md]
+  escalate   --project P --task T
+  close      --project P [--check] [--dry-run]
+  cleanup    --project P [--branches] [--all-branches] [--force] [--dry-run]
+  mcp        run the MCP server on stdio
 `;
 
 function opt(args: string[], options: Record<string, { type: "string" | "boolean" }>) {
@@ -110,6 +120,74 @@ async function main(): Promise<number> {
         mode: v.mode as "any" | "all" | undefined,
       });
       break;
+    }
+    case "integrate": {
+      const v = opt(rest, {
+        project: { type: "string" },
+        branch: { type: "string" },
+        mode: { type: "string" },
+      });
+      out = integrateBranch(cfg, {
+        project: req(v.project as string | undefined, "project"),
+        branch: req(v.branch as string | undefined, "branch"),
+        mode: req(v.mode as string | undefined, "mode") as "review" | "merge",
+      });
+      break;
+    }
+    case "collect": {
+      const v = opt(rest, { project: { type: "string" }, file: { type: "string" } });
+      out = collectFindings(cfg, {
+        project: req(v.project as string | undefined, "project"),
+        file: v.file as string | undefined,
+      });
+      break;
+    }
+    case "escalate": {
+      const v = opt(rest, { project: { type: "string" }, task: { type: "string" } });
+      out = escalateTask(cfg, {
+        project: req(v.project as string | undefined, "project"),
+        task: req(v.task as string | undefined, "task"),
+      });
+      break;
+    }
+    case "close": {
+      const v = opt(rest, {
+        project: { type: "string" },
+        check: { type: "boolean" },
+        "dry-run": { type: "boolean" },
+      });
+      const res = closeRun(cfg, {
+        project: req(v.project as string | undefined, "project"),
+        check: Boolean(v.check),
+        dryRun: Boolean(v["dry-run"]),
+      });
+      console.log(JSON.stringify(res, null, 2));
+      return "clean" in res && res.clean === false ? 1 : 0;
+    }
+    case "cleanup": {
+      const v = opt(rest, {
+        project: { type: "string" },
+        branches: { type: "boolean" },
+        "all-branches": { type: "boolean" },
+        force: { type: "boolean" },
+        "dry-run": { type: "boolean" },
+      });
+      const res = cleanupRun(cfg, {
+        project: req(v.project as string | undefined, "project"),
+        branches: Boolean(v.branches),
+        allBranches: Boolean(v["all-branches"]),
+        force: Boolean(v.force),
+        dryRun: Boolean(v["dry-run"]),
+      });
+      console.log(JSON.stringify(res, null, 2));
+      return res.worktreesSkipped > 0 ? 1 : 0;
+    }
+    case "mcp": {
+      const { runMcp } = await import("./mcp.js");
+      await runMcp();
+      return new Promise<number>(() => {
+        /* serve until the transport closes the process */
+      });
     }
     case "_worker": {
       const v = opt(rest, { "run-dir": { type: "string" }, name: { type: "string" } });
