@@ -1,6 +1,6 @@
 {
   "name": "camerata",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Camerata — a multi-agent orchestration engine and playbooks for Claude Code and Codex CLI orchestrators. Full release in development.",
   "license": "Apache-2.0",
   "repository": {
