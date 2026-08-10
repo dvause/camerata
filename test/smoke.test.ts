@@ -1,5 +1,6 @@
 // Hermetic end-to-end smoke: fake codex/claude shims on PATH, no network, no
-// API spend. Drives the built CLI (dist/) exactly as an orchestrator would.
+// API spend. Drives the packed npm artifact — not the source tree — exactly as
+// an orchestrator would.
 import { spawn, spawnSync } from "node:child_process";
 import {
   appendFileSync,
@@ -13,18 +14,18 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { delimiter, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { isAlive } from "../src/platform.js";
+import { packCli } from "./pack.js";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const cliJs = join(here, "..", "dist", "cli.js");
 const isWindows = process.platform === "win32";
 // codex refuses on native Windows by design; the claude backend carries the run
 const backend = isWindows ? "claude" : "codex";
 const fallbackModel = isWindows ? "sonnet" : "gpt-5.6-terra";
 
 let root: string;
+let cliJs: string;
 let home: string;
 let shims: string;
 let repo: string;
@@ -49,7 +50,16 @@ process.stdin.on("data", (d) => (prompt += d));
 process.stdin.on("end", () => {
   if (model === "bogus") { console.error("model_not_found: model bogus does not exist"); process.exit(1); }
   if (prompt.includes("SHIM:FAIL")) { console.error("shim: crashing as instructed"); process.exit(1); }
-  if (prompt.includes("SHIM:STALL")) { setTimeout(() => process.exit(0), 120000); return; }
+  if (prompt.includes("SHIM:STALL")) {
+    if (prompt.includes("SHIM:CHILD")) {
+      // A grandchild of the launcher: only a process-TREE kill reaches it.
+      const kid = require("child_process").spawn(
+        process.execPath, ["-e", "setTimeout(() => {}, 600000)"], { stdio: "ignore" });
+      fs.writeFileSync(path.join(dir, "child.pid"), String(kid.pid));
+    }
+    setTimeout(() => process.exit(0), 120000);
+    return;
+  }
   if (prompt.includes("SHIM:FINDINGS")) {
     fs.writeFileSync(path.join(dir, "FINDINGS.md"), "## F1 shim finding\\n\\nEvidence here.\\n");
     console.log("findings written");
@@ -151,6 +161,7 @@ function statusOf(name: string) {
 
 beforeAll(() => {
   root = mkdtempSync(join(tmpdir(), "camerata-smoke-"));
+  cliJs = packCli(join(root, "pack"));
   home = join(root, "home");
   shims = join(root, "shims");
   repo = join(root, "target-repo");
@@ -253,14 +264,23 @@ describe("engine smoke (hermetic)", () => {
     expect(d.error.message).toContain("Windows");
   });
 
-  it("a timed-out worker is killed and lands in status as failed/timeout", () => {
-    const d = dispatch("w3", "SHIM:STALL — never finish.", ["--timeout-s", "2"]);
+  it("a timed-out worker is killed with its whole process tree", async () => {
+    const d = dispatch("w3", "SHIM:STALL SHIM:CHILD — never finish.", ["--timeout-s", "2"]);
     expect(d.status).toBe(0);
     const w = waitFor("w3", 30);
     expect(w.json.timedOut).toBe(false);
     const st = statusOf("w3");
     expect(st.state).toBe("failed");
     expect(st.reason).toBe("timeout");
+
+    // The stalling shim spawned a grandchild; process-group kill (POSIX) and
+    // `taskkill /T` (Windows) must both reach it.
+    const kid = Number(readFileSync(join(d.json.worktree, "child.pid"), "utf8").trim());
+    expect(Number.isInteger(kid)).toBe(true);
+    for (let i = 0; i < 50 && isAlive(kid); i++) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(isAlive(kid)).toBe(false);
   }, 90_000);
 
   it("model fallback: unavailable model retries once on the fallback, both visible", () => {

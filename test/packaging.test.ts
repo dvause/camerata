@@ -15,13 +15,15 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { upsertServer } from "../src/setup-codex.js";
+import { packCli } from "./pack.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, "..");
-const cliJs = join(repoRoot, "dist", "cli.js");
 const readJson = (...p: string[]) => JSON.parse(readFileSync(join(repoRoot, ...p), "utf8"));
 
 let root: string;
+let packDir: string;
+let cliJs: string;
 let home: string;
 let codexHome: string;
 
@@ -37,6 +39,8 @@ function setup(args: string[] = []) {
 
 beforeAll(() => {
   root = mkdtempSync(join(tmpdir(), "camerata-pkg-"));
+  packDir = join(root, "pack");
+  cliJs = packCli(packDir);
   home = join(root, "home");
   codexHome = join(root, "codex");
   mkdirSync(home, { recursive: true });
@@ -59,8 +63,16 @@ describe("packaging manifests", () => {
     expect(market.plugins.map((p: { name: string }) => p.name)).toContain(name);
   });
 
-  it("the packed artifact ships dist and skills only", () => {
-    expect(readJson("package.json").files).toEqual(["dist", "skills"]);
+  it("the packed artifact ships dist and skills, and no source tree", () => {
+    const pkg = join(packDir, "package");
+    const shipped = readdirSync(pkg).sort();
+    expect(shipped).toContain("dist");
+    expect(shipped).toContain("skills");
+    expect(shipped).not.toContain("src");
+    expect(shipped).not.toContain("test");
+    // What the CLI reads at runtime must live inside the package.
+    expect(existsSync(join(pkg, "package.json"))).toBe(true);
+    expect(existsSync(join(pkg, "skills", "camerata-build", "SKILL.md"))).toBe(true);
   });
 });
 
