@@ -2,9 +2,23 @@
   "name": "camerata",
   "version": "0.1.0",
   "description": "Camerata — a multi-agent orchestration engine and playbooks for Claude Code and Codex CLI orchestrators. Full release in development.",
+  "keywords": [
+    "orchestration",
+    "agents",
+    "multi-agent",
+    "mcp",
+    "claude-code",
+    "codex",
+    "git-worktree"
+  ],
   "license": "Apache-2.0",
   "repository": {
+    "type": "git",
     "url": "git+https://github.com/dvause/camerata.git"
+  },
+  "homepage": "https://github.com/dvause/camerata#readme",
+  "bugs": {
+    "url": "https://github.com/dvause/camerata/issues"
   },
   "author": "Dave Vause <dave@vauseware.com>",
   "type": "module",
