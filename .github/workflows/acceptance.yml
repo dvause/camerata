@@ -1,0 +1,67 @@
+# Real-CLI acceptance run. Manual only: it installs a genuine worker backend
+# and spends real API budget. The hermetic smoke in ci.yml stays the gate.
+name: acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      os:
+        description: Runner
+        type: choice
+        default: windows-latest
+        options: [windows-latest, macos-latest, ubuntu-latest]
+      backend:
+        description: Worker backend (codex refuses on native Windows by design)
+        type: choice
+        default: claude
+        options: [claude, codex]
+
+jobs:
+  acceptance:
+    runs-on: ${{ inputs.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install camerata from its own tarball
+        shell: bash
+        run: |
+          npm ci
+          npm run build
+          npm install -g "$(npm pack | tail -1)"
+          echo "CAMERATA_CLI=$(npm root -g)/camerata/dist/cli.js" >> "$GITHUB_ENV"
+
+      - name: Install the worker backend
+        shell: bash
+        run: |
+          if [ "${{ inputs.backend }}" = "claude" ]; then
+            npm install -g @anthropic-ai/claude-code
+          else
+            npm install -g @openai/codex
+          fi
+
+      - name: Acceptance run
+        shell: bash
+        env:
+          ACC_BACKEND: ${{ inputs.backend }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ "${{ inputs.backend }}" = "claude" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::ANTHROPIC_API_KEY is not set in repository secrets"; exit 1
+          fi
+          if [ "${{ inputs.backend }}" = "codex" ] && [ -z "$OPENAI_API_KEY" ]; then
+            echo "::error::OPENAI_API_KEY is not set in repository secrets"; exit 1
+          fi
+          node .github/scripts/acceptance.mjs
+
+      - name: Upload the run directory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-${{ inputs.os }}-${{ inputs.backend }}
+          path: acc-home/runs/
+          if-no-files-found: warn
