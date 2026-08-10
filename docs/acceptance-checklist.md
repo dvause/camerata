@@ -89,8 +89,14 @@ CLI.
 
 ## E3 — Native Windows
 
-Needs real hardware or a VM. On Apple Silicon, Windows 11 **ARM64** — an x64
-image will not boot.
+Two ways to run this. The `acceptance` workflow does it on GitHub's
+`windows-latest` runner with no VM at all — Actions → acceptance → Run
+workflow, `windows-latest` + `claude`. It needs `ANTHROPIC_API_KEY` in
+repository secrets and asserts the same criteria as the list below.
+
+By hand needs real hardware or a VM. On Apple Silicon, Windows 11 **ARM64** —
+an x64 image will not boot, and Parallels must be new enough to support
+Windows 11 on ARM (16.x is not).
 
 ```powershell
 npx -y camerata@0.1.0 doctor
@@ -105,6 +111,10 @@ npx -y camerata@0.1.0 doctor
 CI already proves the hermetic smoke and the `taskkill /T` tree kill on
 `windows-latest`. What this adds is a genuine `claude` CLI spawned through the
 `.cmd` shim, which the shims cannot fully model.
+
+The workflow covers E4's engine path too — pick the runner and backend as
+inputs. What it cannot cover is a host driving the engine through MCP, so E1
+and E2 still need real Claude Code and Codex sessions.
 
 ## E4 — Linux
 
