@@ -1,6 +1,6 @@
 ---
 name: camerata-spec
-description: Use when a fuzzy ask — basic requirements, a brainstorm, a feature request, or a confirmed audit finding list — must become a written, testable spec that `camerata-plan` can slice into worker runs. A SOLO playbook: the orchestrator interviews and writes; workers appear only in an optional read-only research fan-out. Triggers: "write a spec", "spec this out", "turn this brainstorm into a spec", "requirements to spec", "camerata-spec".
+description: Use when a fuzzy ask must become a written, testable spec that `camerata-plan` can slice into worker runs. The ask can be basic requirements, a brainstorm, a feature request, or a confirmed audit finding list. A SOLO playbook. The orchestrator interviews and writes; workers appear only in an optional read-only research fan-out. Triggers: "write a spec", "spec this out", "turn this brainstorm into a spec", "requirements to spec", "camerata-spec".
 ---
 
 # Spec authoring (solo orchestration stage)
@@ -8,11 +8,11 @@ description: Use when a fuzzy ask — basic requirements, a brainstorm, a featur
 ## Overview
 
 `camerata-spec` *defines*, `camerata-plan` *slices*, `camerata-build` *executes*.
-The hard part is converting fuzzy intent into TESTABLE acceptance criteria and
-EXPLICIT non-goals; every ambiguity that survives the spec resurfaces mid-build
+The hard part is turning fuzzy intent into TESTABLE acceptance criteria and
+EXPLICIT non-goals. Every ambiguity that survives the spec comes back mid-build
 as a worker stall or a high-LOE dispatch. Spec-writing is judgment work, so the
-orchestrator does it directly — dispatching cheap workers to write specs inverts
-the thesis (planning matters more than typing).
+orchestrator does it directly. Dispatching cheap workers to write the spec has
+it backwards. Planning matters more than typing.
 
 ## When NOT to use
 
@@ -32,41 +32,41 @@ the thesis (planning matters more than typing).
 ## Procedure
 
 1. **Intake & classify.** Greenfield feature | brownfield change | remediation
-   (seeded from a confirmed audit report). Identify the decision surface: what is
-   genuinely undecided vs. merely unstated. Agree the output path with the user
-   once, up front (default: `<target-repo>/docs/specs/<slug>.md` for brownfield;
-   any user-named path for greenfield). The spec is handed to the human — NEVER
-   auto-committed into a client repo.
+   (seeded from a confirmed audit report). Sort what is genuinely undecided from
+   what is merely unstated. Agree the output path with the user once, up front
+   (default: `<target-repo>/docs/specs/<slug>.md` for brownfield; any user-named
+   path for greenfield). The spec is handed to the human, NEVER auto-committed
+   into a client repo.
 
 2. **Research before grilling (brownfield only).** Never ask the user a question
    the code can answer. Consume existing artifacts first. If codebase facts are
    still missing, run the optional research fan-out (below).
 
-3. **Grill the user — bounded.** Interview budget: at most 3 rounds, at most 5
+3. **Grill the user, bounded.** Interview budget: at most 3 rounds, at most 5
    questions per round, highest-information questions first. Question rubric
    (cover all axes, skip the already-answered):
    - success criteria (what observable behavior proves done)
    - non-goals
    - users/actors and key scenarios
    - data-model deltas
-   - integration surface and the exact interface names to freeze
+   - integration points and the exact interface names to freeze
    - quality bar (perf, security, accessibility)
    - human-only work (secrets, fixtures, live deploys, real-data migrations)
    - constraints (stack, conventions)
    - risk tolerance
 
    When the budget is spent or the user is unavailable, every unanswered question
-   becomes an explicit line in the spec's Assumptions section marked PENDING —
+   becomes an explicit line in the spec's Assumptions section marked PENDING,
    never a silent decision.
 
 4. **Draft the spec(s)** from `templates/spec.md`. One spec per independently
-   shippable unit; the splitting rule: if two halves could ship in either order,
+   shippable unit. The splitting rule: if two halves could ship in either order,
    they are two specs.
 
-5. **Make every acceptance criterion machine-checkable where possible** — each
+5. **Make every acceptance criterion machine-checkable where possible.** Each
    criterion names the command or test that proves it. A criterion no machine can
-   check is tagged `[human check]` with who checks it and how. This is what lets
-   `camerata-build`'s verification stay mechanical instead of judgment-bound.
+   check is tagged `[human check]` with who checks it and how. This is what keeps
+   `camerata-build`'s verification mechanical instead of judgment-bound.
 
 6. **Self-check gate** (all must pass before handoff):
    - every success criterion has a named check
@@ -109,7 +109,7 @@ P0/P-Final; Data & interfaces → the foundation workers' Output/Interfaces bloc
 
 ## Optional research fan-out (brownfield only)
 
-Compose first: prefer existing documentation over new workers.
+Compose first. Existing documentation beats new workers.
 
 Otherwise dispatch AT MOST 2 read-only surveyors on the document-bus contract:
 `commit: false`, exactly one `REPORT.md` at the worktree root,
@@ -129,17 +129,17 @@ collect_findings { project, file: "REPORT.md" }
 
 Verify evidence refs against the real code before relying on them.
 
-The client-repo consent gate applies IN FULL: dispatching a worker sends source
+The client-repo consent gate applies IN FULL. Dispatching a worker sends source
 to a third-party model API, so record explicit consent in `<runDir>/progress.md`
-before any dispatch. Committed secrets are visible at the base SHA — sweep first,
-warn the owner about any sensitive location before dispatch, and write every
-research goal so workers reference credential LOCATIONS only, never values.
+before any dispatch. Committed secrets are visible at the base SHA, so sweep
+first, warn the owner about any sensitive location before dispatch, and write
+every research goal so workers reference credential LOCATIONS only, never values.
 
 When a research run dir exists, drop a copy of the finished spec there for the
 engagement record, and close the run with `close_run { project }` once
 `## Final summary` is written.
 
-## Common Mistakes
+## Common mistakes
 
 | Mistake | Fix |
 |---|---|
@@ -152,7 +152,7 @@ engagement record, and close the run with `close_run { project }` once
 | Unbounded interview | 3-round budget, then PENDING assumptions |
 | Auto-committing the spec into a client repo | Hand the file to the human |
 
-## Cross-References
+## Cross-references
 
 - **REQUIRED next stage:** `camerata-plan` (then `camerata-build`).
 - **Remediation specs** seed from `camerata-audit`'s `report.md` (confirmed
