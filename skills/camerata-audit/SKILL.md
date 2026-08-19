@@ -1,15 +1,15 @@
 ---
 name: camerata-audit
-description: Use when a strong planning model should orchestrate READ-ONLY auditor workers over a repo to produce findings files for a ranked report — no code changes, no fixes, no merges. Triggers on "audit this repo", "run camerata audit", "camerata-audit", "orchestrate a code audit", or multi-agent audits where charter, decomposition, and adjudication matter.
+description: Use when a strong planning model should orchestrate READ-ONLY auditor workers over a repo to produce findings files for a ranked report. No code changes, no fixes, no merges. Triggers on "audit this repo", "run camerata audit", "camerata-audit", "orchestrate a code audit", or multi-agent audits where charter, decomposition, and adjudication matter.
 ---
 
 # Audit orchestration
 
 You are the **orchestrator**. You own the charter, decomposition, adjudication,
-and final ranked report. Auditors are cheaper and bounded: they read, reason, and
-produce findings for you to judge.
+and final ranked report. Auditors are cheaper and bounded. They read, reason,
+and produce findings for you to judge.
 
-This differs from `camerata-build`: audit workers never modify the codebase and
+This differs from `camerata-build`. Audit workers never modify the codebase and
 nothing is ever merged. Worker READ scopes may overlap because that is harmless,
 but every worker must have a **distinct rubric** so spend is not duplicated.
 
@@ -38,7 +38,7 @@ Engine calls are tools of the `camerata` MCP server: `init_run`,
 Dispatching a worker sends source to a third-party model API. For any repo you do
 not own, record explicit consent in `<runDir>/progress.md` before the first
 dispatch: who authorized it, when, and what scope. Committed secrets are visible
-at the base SHA — sweep for them first and warn the owner about any sensitive
+at the base SHA, so sweep for them first and warn the owner about any sensitive
 location before dispatch. Write every auditor goal so workers reference
 credential LOCATIONS only, never values. No consent line, no dispatch.
 
@@ -53,9 +53,9 @@ credential LOCATIONS only, never values. No consent line, no dispatch.
   their own lines: **Severity:** P1|P2|P3, **Where:** file:line (or file range),
   **What:** the defect, **Why it matters:** consequence, **Fix:** concrete
   recommendation, **Confidence:** high|medium|low; then a `## Coverage` section
-  (which assigned focus areas/subsystems were examined, which were not and
-  why — a worker that skipped a focus area must say so); then a final
-  `## Verdict` section (overall assessment + top items). P1 = incorrect
+  naming which assigned focus areas and subsystems were examined and which were
+  not, with the reason, so a worker that skipped a focus area has to say so; then
+  a final `## Verdict` section (overall assessment + top items). P1 = incorrect
   behavior/data loss/security; P2 = real defect with workaround or latent trap;
   P3 = robustness/clarity.
 - `collect_findings { project }` copies each worker's `FINDINGS.md` from its
@@ -79,7 +79,7 @@ credential LOCATIONS only, never values. No consent line, no dispatch.
    invisible to them; record any dirt in `<runDir>/progress.md`.
 
 3. **Decide the split.** Default 3 auditors; up to 8 when the scopes are
-   genuinely disjoint — record the justification in the progress log. Split by
+   genuinely disjoint. Record the justification in the progress log. Split by
    rubric axis or by subsystem. Read-scope overlap is fine; rubric overlap is
    waste. One auditor is often enough for a small repo.
 
@@ -107,7 +107,7 @@ credential LOCATIONS only, never values. No consent line, no dispatch.
    ```
    dispatch_worker { project, name: "<auditor>", goalFile: "<path>", loe: "medium", commit: false }
    ```
-   For codex auditors, `gitMode: "ro"` narrows the sandbox to read-only — the
+   For codex auditors, `gitMode: "ro"` narrows the sandbox to read-only, the
    strongest containment available. It is refused with the claude backend, whose
    deny-wins tool precedence cannot express read-only git; there `commit: false`
    plus the goal's prohibition is the boundary.
@@ -116,27 +116,28 @@ credential LOCATIONS only, never values. No consent line, no dispatch.
    anything else is an abort condition.
 
 8. **Collect.** `collect_findings { project }`. If a worker wrote no
-   `FINDINGS.md`, fall back to its final message in `<runDir>/logs/<name>.log` —
-   the log is the backup channel — and record that in the progress log.
+   `FINDINGS.md`, fall back to its final message in `<runDir>/logs/<name>.log`,
+   the backup channel, and record that in the progress log.
 
-9. **Synthesize — adjudicate, do NOT concatenate.** Verify each finding against
-   the real code (confirm / reject / defer) using the adjudication calibration
-   below, dedupe across auditors, rank by severity, and write the ranked report
-   to `<runDir>/report.md` from `templates/report.md`. You are the gate: reject
-   the speculative and the wrong. A finding that flags an intentional invariant
-   is a rejection and a hint your charter under-specified the invariants.
-   Two synthesis duties beyond the verdicts: (a) **strength claims are findings
-   in reverse** — a defense or quality claim from a worker's Verdict enters the
+9. **Synthesize by adjudicating, never by concatenating.** Verify each finding
+   against the real code (confirm / reject / defer) using the adjudication
+   calibration below, dedupe across auditors, rank by severity, and write the
+   ranked report to `<runDir>/report.md` from `templates/report.md`. You are the
+   gate: reject the speculative and the wrong. A finding that flags an
+   intentional invariant is a rejection and a hint your charter under-specified
+   the invariants.
+   Two synthesis duties beyond the verdicts. (a) **Strength claims are findings
+   in reverse.** A defense or quality claim from a worker's Verdict enters the
    report (or any downstream deliverable) as verified only when you re-traced it
    against the code and recorded the trace in `progress.md`; otherwise it stays
    attributed to the worker. (b) **Cluster confirmed findings into themes** in
-   the report Verdict — a shared failure pattern is the most useful thing an
-   audit can hand the client, and it only emerges at synthesis.
+   the report Verdict. A shared failure pattern is the most useful thing an audit
+   can hand the client, and it only emerges at synthesis.
 
 10. **Final report to the human.** Provide the ranked report location, counts by
     severity, top-3 actions, workers/models/branches used, and checks you ran
     yourself. Keep `<runDir>/progress.md` current throughout. If fixes are
-    wanted, hand the confirmed findings to a `camerata-build` run — never fix
+    wanted, hand the confirmed findings to a `camerata-build` run; never fix
     from inside the audit. The report is handed to the human; never
     auto-committed into a client repo.
 
@@ -158,29 +159,29 @@ Per finding, against the real code:
 
 - **CONFIRM** only when you can reproduce the reasoning yourself: open the
   file:line, state the failure scenario in one sentence, and check the claimed
-  severity against the scale. Re-grade severity as part of confirming — auditors
+  severity against the scale. Re-grade severity as part of confirming; auditors
   inflate. A P1 means incorrect behavior, data loss, or a security hole NOW;
   "could be bad someday" is P2 (latent trap) or P3.
 - **REJECT** findings that flag a recorded intentional invariant (and record the
   charter gap), findings with no file:line, and findings whose claimed behavior
   you cannot reproduce by reading the code. A 30–50% rejection rate on cheap
-  auditors is expected, not a crisis — concatenating unverified findings is the
+  auditors is expected, not a crisis. Concatenating unverified findings is the
   actual failure.
 - **DEFER** what is plausible but would take real investigation to prove and is
   not release-blocking. Deferred items ship in the report under their own
-  heading — never silently dropped.
-- **When unsure: DEFER, never CONFIRM.** The report's credibility is the
+  heading, never silently dropped.
+- **When unsure, DEFER; never CONFIRM.** The report's credibility is the
   deliverable; one confirmed-but-wrong finding costs more than five deferred true
   positives.
 
 Every file:line in the report is checked by you before it ships. A citation you
 did not open is not evidence.
 
-Calibration exemplar — how verdicts should read:
+How the verdicts should read:
 
 | finding (abridged) | verdict | why |
 | --- | --- | --- |
-| P1 "path traversal via worker `name`" | REJECT | Read the guard first: the slug is validated (rejects `/`, `..`, leading `.`) before any path is derived from it. The attractive story dies at the actual validation order — open the file before confirming. |
+| P1 "path traversal via worker `name`" | REJECT | Read the guard first: the slug is validated (rejects `/`, `..`, leading `.`) before any path is derived from it. The attractive story dies at the actual validation order, so open the file before confirming. |
 | P1 "dependencies not pinned" | REJECT | Charter invariant: "single-user dev tool, deps reviewed on update." Recorded as a charter note. |
 | P2 "TOCTOU between status write and read" | DEFER | Single writer today; proving it needs a concurrency harness. Ships as deferred. |
 | P3 "duplicated helper across two files" | CONFIRM | Both file:line refs check out; trivial to state the drift risk. |

@@ -1,6 +1,6 @@
 ---
 name: camerata-plan
-description: Use when you have a spec or design doc for a non-trivial build and need to turn it into a camerata orchestration plan before dispatching workers — slicing the work into dependency-ordered runs of non-overlapping parallel workers. Triggers on "decompose this for workers", "slice the spec into worker tasks", "prep for camerata", or any build too big for one worker where worker scopes must not collide.
+description: Use when you have a spec or design doc for a non-trivial build and need to turn it into a camerata orchestration plan before dispatching workers. It slices the work into dependency-ordered runs of non-overlapping parallel workers. Triggers on "decompose this for workers", "slice the spec into worker tasks", "prep for camerata", or any build too big for one worker where worker scopes must not collide.
 ---
 
 # Plan
@@ -8,17 +8,18 @@ description: Use when you have a spec or design doc for a non-trivial build and 
 ## Overview
 
 `camerata-build` *executes*; this skill *plans the slice it executes*. The hard
-part of a plan is not listing tasks — it is **cutting the work so each run
-follows: Default 3 workers; up to 8 when the scopes are genuinely disjoint —
-record the justification in the progress log.** The work must still have strictly
-non-overlapping file ownership, be ordered by real dependencies, and carve
-secret/deploy/token work out to humans. Get the slice right and cheap `low`-LOE
-workers can build it in parallel without colliding; get it wrong and workers
-stall, overwrite each other, or need frontier reasoning to recover.
+part of a plan is not listing tasks. It is **cutting the work so every run holds
+to the size rule: default 3 workers, up to 8 when the scopes are genuinely
+disjoint, with the justification recorded in the progress log.** The work must
+still have strictly non-overlapping file ownership, be ordered by real
+dependencies, and carve secret/deploy/token work out to humans. Get the slice
+right and cheap `low`-LOE workers can build it in parallel without colliding; get
+it wrong and workers stall, overwrite each other, or need frontier reasoning to
+recover.
 
 This is a solo stage: you write the plan, dispatch nothing.
 
-## When to Use
+## When to use
 
 - You have a written spec/design doc and are about to run `camerata-build` on a
   build too big for one worker.
@@ -26,31 +27,31 @@ This is a solo stage: you write the plan, dispatch nothing.
 - Triggers: "decompose this for workers," "slice the spec into worker tasks,"
   "prep for camerata," "how do I parallelize this build."
 
-**When NOT:** tiny tasks (just do it). No spec yet — write one first with
+**When NOT:** tiny tasks (just do it). With no spec yet, write one first with
 `camerata-spec` (this skill MUST NOT consume a spec whose status is draft). Work
-you can't split into non-overlapping scopes — do it solo and run one review pass.
+you can't split into non-overlapping scopes stays solo; do it yourself and run
+one review pass.
 
 ## Procedure
 
 1. **Topo-order by dependency.** Sketch what depends on what: shared
    types/schema → pure engines → API/server → collectors/consumers → UI →
    deploy. This ordering *becomes your runs*.
-2. **Find the shared substrate in each layer.** Anything multiple workers
-   import — types, DB schema, DB client, auth helper, theme, api-client
-   barrel — is built FIRST by ONE foundational worker, then **frozen**. This is
-   the recurring **foundation-then-fan-out** pattern (it usually appears once per
-   layer).
+2. **Find what a layer's workers share.** Anything multiple workers import
+   (types, DB schema, DB client, auth helper, theme, api-client barrel) is built
+   FIRST by ONE foundational worker, then **frozen**. This is the recurring
+   **foundation-then-fan-out** pattern; it usually appears once per layer.
 3. **Fan out only along non-overlapping file boundaries.** Within a layer, split
    into default 3 parallel workers; up to 8 when the scopes are genuinely
-   disjoint — record the justification in the progress log. Each worker owns
+   disjoint. Record the justification in the progress log. Each worker owns
    disjoint directories. Non-overlap is judged per file, dependency, migration,
-   generated code, and global config — *not* per "feature."
+   generated code, and global config, *not* per "feature."
 4. **Carve out human-only phases.** Reading the user's real machine (capturing
    fixtures), secrets, real tokens, live deploy, and migrations against real data
    are NOT worker scope. Bookend the plan with **P0** (discovery / fixtures) and
    **P-Final** (deploy / secrets).
 5. **Assign LOE luna-first.** Per worker, from the ambiguity that *remains after
-   your decomposition* — not feature size. The start rung is `low` by default and
+   your decomposition*, not feature size. The start rung is `low` by default and
    needs no justification. Any task starting at `medium` or above, and any task
    flagged for competition, carries a one-line recorded reason in its worker card
    in the plan doc. Well-specified slice → `low`. Only genuine architecture →
@@ -61,7 +62,7 @@ you can't split into non-overlapping scopes — do it solo and run one review pa
    contracts and paste their `rule:` lines into the affected slices; a missing or
    empty memory file is normal.
 
-## The Non-Overlap Rule (the crux)
+## The non-overlap rule (the crux)
 
 Two workers **collide** if they both edit: the same file • the same
 `package.json`/lockfile • the same migration • the same generated code • the same
@@ -70,12 +71,12 @@ barrel/`index`/route-registry • the same global config.
 Resolve by: assign the shared file to exactly ONE worker • make barrels/exports
 **append-only** • or pull the shared piece up into a **foundation worker**. If you
 cannot carve disjoint slices that still fit within the default 3 / up to 8 rule,
-the layer is sequential — make it a single worker.
+the layer is sequential, so make it a single worker.
 
 ### Collision walkthrough (calibration)
 
 Candidate split: worker A "add `/export` API route", worker B "add CSV download
-button". Looks disjoint (server vs UI) — now run the checks:
+button". Looks disjoint (server vs UI). Now run the checks:
 
 1. **Files:** A owns `api/export/`, B owns `components/Export*`. Disjoint so far.
 2. **Deps:** both need `csv-stringify` → both would edit `package.json` + the
@@ -88,17 +89,17 @@ button". Looks disjoint (server vs UI) — now run the checks:
 
 Rule of thumb: when two goal files name the same file, dependency, migration, or
 registry, either one worker owns it or it moves up into a foundation run. If you
-cannot prove disjointness in this walkthrough form, the layer is sequential — one
-worker.
+cannot prove disjointness in this walkthrough form, the layer is sequential, so
+use one worker.
 
-## Worker Goal Contract
+## Worker goal contract
 
 Each worker block carries, verbatim from `camerata-build`'s template:
 
 **Mission** (one sentence) · **LOE (start rung; reason required only when not low
-or when competing)** · **Scope — Allowed** (globs) / **Forbidden** (globs) ·
+or when competing)** · **Scope: Allowed** (globs) / **Forbidden** (globs) ·
 **Inputs** (spec sections, fixtures) · **Output / Interfaces** (the *exact* names
-later workers import — frozen) · **Tests** (fixture-driven, runnable) ·
+later workers import, frozen) · **Tests** (fixture-driven, runnable) ·
 **Definition of Done** · **Avoid** · **Commit** (yes/no).
 
 The Output/Interfaces block is how non-adjacent workers learn each other's
@@ -109,16 +110,16 @@ Allowed globs double as the worker's `<runDir>/allow/<name>.allow` file in build
 one glob per line, matched against the full repo-relative path with `*` crossing
 `/`. Write them in that form so build can paste them straight in.
 
-## Run Sizing
+## Run sizing
 
-- Default 3 workers; up to 8 when the scopes are genuinely disjoint — record the
+- Default 3 workers; up to 8 when the scopes are genuinely disjoint. Record the
   justification in the progress log.
 - A run is **either** one foundation worker **or** default 3 / up to 8 disjoint
-  parallel workers — never both. Express a foundation as its own run.
+  parallel workers, never both. Express a foundation as its own run.
 - **Fan out only when a layer is large enough to need it.** A small layer is ONE
-  worker, even if you *could* split it — don't manufacture a foundation +
+  worker, even if you *could* split it; don't manufacture a foundation +
   parallel pages for a handful of files. Parallelism is a cost (more branches,
-  more integration, more collision surface), not a goal. *Agent confetti is still
+  more integration, more ways to collide), not a goal. *Agent confetti is still
   confetti.*
 - **Gate between runs:** merge one branch at a time, re-run the tests *yourself*,
   then proceed.
@@ -126,7 +127,7 @@ one glob per line, matched against the full repo-relative path with `*` crossing
   iteration (`reviewer-r<r>`, `fix-r<r>`, ...); the engine never reuses a worker
   name within a run.
 
-## Plan Document Skeleton
+## Plan document skeleton
 
 ```markdown
 # <Feature> — Camerata Orchestration Plan
@@ -140,7 +141,7 @@ one glob per line, matched against the full repo-relative path with `*` crossing
 ## Run dependency graph + gates
 ```
 
-## Worked Example (a monorepo dashboard build)
+## Worked example (a monorepo dashboard build)
 
 ```
 P0  Discovery (human): capture real log/API fixtures + token locations
@@ -155,10 +156,10 @@ P-Final  Deploy (human): launchd, secrets, end-to-end smoke
 ```
 
 Note the **foundation-then-fan-out** pattern recurs three times (R1→R2, R3→R4,
-R6→R7): each fan-out is preceded by a single worker that builds and freezes the
-substrate the parallel workers import.
+R6→R7). Each fan-out follows a single worker that builds and freezes the shared
+code the parallel workers import.
 
-## Common Mistakes
+## Common mistakes
 
 | Mistake | Fix |
 |---|---|
@@ -170,9 +171,9 @@ substrate the parallel workers import.
 | Everything dispatched at `high` LOE | Sharpen the slice; default luna-first |
 | Shared types edited mid-run by a parallel worker | Freeze them in the foundation run; import read-only |
 
-## Cross-References
+## Cross-references
 
-- **REQUIRED for execution:** `camerata-build` — this skill only produces the
+- **REQUIRED for execution:** `camerata-build`. This skill only produces the
   plan; build dispatches, monitors, synthesizes, and runs the review→fix loop.
-- **Produce the spec first:** `camerata-spec` — grill, draft, and get the
+- **Produce the spec first:** `camerata-spec`. Grill, draft, and get the
   `Status: approved` human gate before slicing.
