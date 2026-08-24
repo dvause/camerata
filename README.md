@@ -17,7 +17,8 @@ One repo, three paths — all on the same engine version.
 /plugin install camerata@camerata
 
 # Codex CLI — installs the skills, registers the MCP server
-npx -y camerata setup-codex
+codex plugin marketplace add dvause/camerata
+codex plugin add camerata@camerata
 
 # bare CLI
 npm i -g camerata
@@ -46,16 +47,16 @@ Or commit a project-scoped `.mcp.json` (pin the version to match the plugin):
 { "mcpServers": { "camerata": { "command": "npx", "args": ["-y", "camerata@0.1.0", "mcp"] } } }
 ```
 
-**Local — Codex CLI.** `npx -y camerata setup-codex` copies the skills to
-`~/.agents/skills` and writes this block into `~/.codex/config.toml`
-(`CODEX_HOME` overrides). It rewrites its own block on re-run, so it is safe to
-repeat after an upgrade:
+**Local — Codex CLI.** Camerata is an [Agent Plugin](https://agent-plugins.org/);
+Codex 0.147+ installs it and registers the MCP server itself:
 
-```toml
-[mcp_servers.camerata]
-command = "npx"
-args = ["-y", "camerata@0.1.0", "mcp"]
+```sh
+codex plugin marketplace add dvause/camerata
+codex plugin add camerata@camerata
 ```
+
+`codex mcp list` should then show the `camerata` server. `CODEX_HOME` overrides
+where that install lands.
 
 **Remote.** There is no HTTP or SSE transport — install camerata on whichever
 machine holds the repo and run it there over stdio. To drive a repo on another
