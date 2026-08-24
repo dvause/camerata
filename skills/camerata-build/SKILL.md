@@ -1,6 +1,6 @@
 ---
 name: camerata-build
-description: Use when a strong planning model should orchestrate bounded worker agents (codex by default, claude via backend) to build or refactor something. You own the goal, decomposition, dispatch, and synthesis while the workers do bounded implementation in isolated git worktrees. The build/refactor playbook of the camerata engine. Triggers on "orchestrate workers", "dispatch codex workers", "run camerata build", "camerata-build", or multi-agent builds where planning matters more than typing.
+description: Use when a strong planning model should orchestrate bounded worker agents (codex by default, claude via backend) to build or refactor something. You own the goal, decomposition, dispatch, and synthesis while the workers do bounded implementation in isolated git worktrees. The build/refactor playbook of the camerata engine. Triggers on "orchestrate workers", "dispatch codex workers", "run camerata build", "camerata-build", "trio build", or multi-agent builds where planning matters more than typing.
 ---
 
 # Build orchestration
@@ -476,6 +476,38 @@ On any hard stop, stop dispatching and integrating, write the `## Final summary`
 with the abort reason, run `close_run { project }`, then ask the human. Do not
 preserve evidence by leaving branches or worktrees behind; the close gate
 archives rejected patches and dirty diffs to the run dir before teardown.
+
+## Trio configuration (opt-in)
+
+A named profile of this playbook that splits author from judge across model
+families: a codex frontier orchestrator, luna-first builders, and every
+advisory role pinned to the strongest claude model. The value is independence —
+the family that planned and built is never the family that judges. Opt in per
+run and record the choice in the progress log; everything below is the standard
+procedure with three bindings.
+
+- **Plan gate (between steps 5 and 6).** Before the first dispatch, send the
+  plan for independent review: one advisor worker
+  (`templates/worker-goal.md` → **Advisor worker**) with `backend: "claude"`,
+  `model: "claude-fable-5"`, `reasoning: "high"`, `commit: false`; its goal
+  embeds the sharpened goal and the worker table, and its rubric is scope
+  collisions, dependency order, and LOE-ladder honesty. Record its findings to
+  `<runDir>/findings-plan.md` and adjudicate them like any reviewer's; you are
+  still the gate. Skip the gate for runs of ≤2 workers — the overhead outweighs
+  the look.
+- **Merge gate.** The Review→fix loop runs exactly as specified, with the
+  reviewer pinned off-ladder: `backend: "claude", model: "claude-fable-5",
+  reasoning: "high"`. Topology stays post-integration; per-branch review
+  remains the exception for individually large or risky branches.
+- **Escalation advisor.** After `escalate_task` writes its report, dispatch one
+  advisor worker at `reasoning: "xhigh"` with the escalation report embedded in
+  its goal, asking for the root cause across attempts and either a rewritten
+  goal for the next dispatch or a recommendation to take the task in-family
+  (`backend: "claude"`, `loe: "high"`). Its recommendation replaces the
+  report's `TODO(orchestrator)` marker only after you endorse it.
+
+The pinned model rides the claude backend unchanged: confinement, model-not-found
+fallback, and `worker_status` reporting behave as for any claude worker.
 
 ## Cross-references
 
