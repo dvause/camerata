@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import picomatch from "picomatch";
 import type { Config } from "./config.js";
 import { readLedger } from "./ledger.js";
 import { isAlive } from "./platform.js";
@@ -53,19 +52,20 @@ export function isTerminal(v: WorkerView): boolean {
   return v.state === "done" || v.state === "failed" || v.stale === true;
 }
 
-// Allow globs use picomatch with v1 semantics: `*` crosses `/`. Flattening `/`
-// to a private char in both pattern and path makes `*` span directories while
-// literal slashes still line up.
+// Allow globs, v1 contract: patterns match the full repo-relative path and `*` crosses `/`.
+export function allowRegExp(pat: string): RegExp {
+  return new RegExp(`^${pat.replace(/[.*+?^${}()|[\]\\]/g, (c) => (c === "*" ? ".*" : `\\${c}`))}$`);
+}
+
 function scopeViolations(runDir: string, name: string, files: string[]): string[] | null {
   const allowFile = join(runDir, "allow", `${name}.allow`);
   if (!existsSync(allowFile)) return null;
-  const flat = (s: string) => s.replaceAll("/", "\u0001");
   const matchers = readFileSync(allowFile, "utf8")
     .split("\n")
     .map((l) => l.replace(/\r$/, "").trim())
     .filter((l) => l !== "" && !l.startsWith("#"))
-    .map((pat) => picomatch(flat(pat), { dot: true }));
-  return files.filter((f) => !matchers.some((m) => m(flat(f))));
+    .map(allowRegExp);
+  return files.filter((f) => !matchers.some((m) => m.test(f)));
 }
 
 function diffInfo(runDir: string, row: ManifestRow) {
