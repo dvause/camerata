@@ -58,7 +58,7 @@ worker's self-report, and a run is not over until the close gate exits clean.
     goals/<name>.goal.md
     logs/<name>.log
     status/<name>.json             # mutable worker state, atomic temp+rename writes
-    allow/<name>.allow             # optional scope globs (* crosses /)
+    allow/<name>.allow             # optional scope globs (* is the only wildcard; crosses /)
     commitignore/<name>            # optional staging excludes
     wt-<name>/                     # worktree
     findings/<name>.findings.md    # collected bus outputs (audit)
