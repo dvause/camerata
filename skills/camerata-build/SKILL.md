@@ -122,12 +122,10 @@ Track a todo item per step.
    **Backend.** Default to `codex`. Pick `backend: "claude"` when the task
    benefits from Claude-family strengths, when you want to diversify model
    families across a run (for example, a reviewer on a different family than the
-   builder), or when codex quota or availability is the constraint. Codex tiers
-   are `low` → `gpt-5.6-luna`/high, `medium` → `gpt-5.6-terra`/medium, `high` →
-   `gpt-5.6-sol`/high, `xhigh` → `gpt-5.6-sol`/xhigh; fallback is
-   `gpt-5.6-terra`. Claude tiers are `low` → `haiku`/high, `medium` →
-   `sonnet`/medium, `high` → `opus`/high, `xhigh` → `opus`/xhigh; fallback is
-   `sonnet`. All eight are config-overridable in `~/.camerata/config.json`. Keep
+   builder), or when codex quota or availability is the constraint. Codex tiers are the
+   ladder above (fallback `gpt-5.6-terra`); claude tiers are `low` → `haiku`/high,
+   `medium` → `sonnet`/medium, `high` → `opus`/high, `xhigh` → `opus`/xhigh,
+   fallback `sonnet`. All eight are config-overridable in `~/.camerata/config.json`. Keep
    the same luna-first discipline: `haiku` and `gpt-5.6-luna` are the goal for
    well-specified slices. Model-not-found fallback and `worker_status` reporting
    behave the same way for both backends. Claude workers get shell but git stays

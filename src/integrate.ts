@@ -6,7 +6,7 @@
 // to overwrite one that would conflict.
 import type { Config } from "./config.js";
 import { fail } from "./errors.js";
-import { findRunDir, git, readRun } from "./run.js";
+import { branchExists, findRunDir, git, readRun } from "./run.js";
 
 export interface IntegrateOpts {
   project: string;
@@ -21,10 +21,9 @@ export function integrateBranch(cfg: Config, opts: IntegrateOpts) {
   if (opts.mode !== "review" && opts.mode !== "merge") {
     fail("E_ARG", "mode must be review or merge");
   }
-  const ref = git(["-C", repo, "show-ref", "--verify", "--quiet", `refs/heads/${opts.branch}`], {
-    allowFail: true,
-  });
-  if (ref.status !== 0) fail("E_BRANCH_NOT_FOUND", `branch not found: ${opts.branch}`);
+  if (!branchExists(repo, opts.branch)) {
+    fail("E_BRANCH_NOT_FOUND", `branch not found: ${opts.branch}`);
+  }
 
   const base = run.baseSha;
   const integration = `integration/${opts.project}`;
@@ -42,11 +41,7 @@ export function integrateBranch(cfg: Config, opts: IntegrateOpts) {
     fail("E_DIRTY", `refusing to merge: ${repo} has uncommitted tracked changes:\n${dirt}`);
   }
 
-  const integExists =
-    git(["-C", repo, "show-ref", "--verify", "--quiet", `refs/heads/${integration}`], {
-      allowFail: true,
-    }).status === 0;
-  if (integExists) {
+  if (branchExists(repo, integration)) {
     git(["-C", repo, "checkout", integration]);
   } else {
     git(["-C", repo, "checkout", "-b", integration, base]);

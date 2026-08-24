@@ -12,15 +12,7 @@ import {
 import { join, resolve, sep } from "node:path";
 import type { Config } from "./config.js";
 import { fail } from "./errors.js";
-import { findRunDir, git, readManifest, readRun, type RunMeta } from "./run.js";
-
-function branchExists(repo: string, branch: string): boolean {
-  return (
-    git(["-C", repo, "show-ref", "--verify", "--quiet", `refs/heads/${branch}`], {
-      allowFail: true,
-    }).status === 0
-  );
-}
+import { branchExists, findRunDir, git, readManifest, readRun, type RunMeta } from "./run.js";
 
 function isAncestor(repo: string, branch: string, of: string): boolean {
   return (

@@ -32,7 +32,7 @@ export function readLedger(runDir: string): LedgerRow[] {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Portable mkdir lock (v1 pattern): steal only when the recorded holder is dead.
-export async function withLock<T>(lockDir: string, fn: () => T): Promise<T> {
+async function withLock<T>(lockDir: string, fn: () => T): Promise<T> {
   const deadline = Date.now() + 60_000;
   for (;;) {
     try {

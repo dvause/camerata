@@ -36,7 +36,7 @@ commands:
   mcp        run the MCP server on stdio
 `;
 
-function opt(args: string[], options: Record<string, { type: "string" | "boolean" }>) {
+function opt<T extends Record<string, { type: "string" | "boolean" }>>(args: string[], options: T) {
   return parseArgs({ args, options, allowPositionals: false }).values;
 }
 
@@ -65,8 +65,8 @@ async function main(): Promise<number> {
         resume: { type: "boolean" },
       });
       out = initRun(cfg, {
-        project: req(v.project as string | undefined, "project"),
-        repo: req(v.repo as string | undefined, "repo"),
+        project: req(v.project, "project"),
+        repo: req(v.repo, "repo"),
         resume: Boolean(v.resume),
       });
       break;
@@ -89,26 +89,26 @@ async function main(): Promise<number> {
         base: { type: "string" },
       });
       out = await dispatchWorker(cfg, {
-        project: req(v.project as string | undefined, "project"),
-        name: req(v.name as string | undefined, "name"),
-        goalFile: req(v["goal-file"] as string | undefined, "goal-file"),
-        backend: v.backend as string | undefined,
-        loe: v.loe as string | undefined,
-        model: v.model as string | undefined,
-        reasoning: v.reasoning as string | undefined,
+        project: req(v.project, "project"),
+        name: req(v.name, "name"),
+        goalFile: req(v["goal-file"], "goal-file"),
+        backend: v.backend,
+        loe: v.loe,
+        model: v.model,
+        reasoning: v.reasoning,
         commit: Boolean(v.commit),
-        task: v.task as string | undefined,
-        attempt: intOr(v.attempt as string | undefined, "attempt"),
-        policy: v.policy as string | undefined,
-        timeoutS: intOr(v["timeout-s"] as string | undefined, "timeout-s"),
-        gitMode: v["git-mode"] as string | undefined,
-        base: v.base as string | undefined,
+        task: v.task,
+        attempt: intOr(v.attempt, "attempt"),
+        policy: v.policy,
+        timeoutS: intOr(v["timeout-s"], "timeout-s"),
+        gitMode: v["git-mode"],
+        base: v.base,
       });
       break;
     }
     case "status": {
       const v = opt(rest, { project: { type: "string" } });
-      out = workerStatus(cfg, req(v.project as string | undefined, "project"));
+      out = workerStatus(cfg, req(v.project, "project"));
       break;
     }
     case "wait": {
@@ -119,9 +119,9 @@ async function main(): Promise<number> {
         mode: { type: "string" },
       });
       out = await waitWorkers(cfg, {
-        project: req(v.project as string | undefined, "project"),
-        timeoutS: intOr(v["timeout-s"] as string | undefined, "timeout-s") ?? 0,
-        workers: (v.workers as string | undefined)?.split(",").filter((w) => w !== ""),
+        project: req(v.project, "project"),
+        timeoutS: intOr(v["timeout-s"], "timeout-s") ?? 0,
+        workers: v.workers?.split(",").filter((w) => w !== ""),
         mode: v.mode as "any" | "all" | undefined,
       });
       break;
@@ -133,25 +133,25 @@ async function main(): Promise<number> {
         mode: { type: "string" },
       });
       out = integrateBranch(cfg, {
-        project: req(v.project as string | undefined, "project"),
-        branch: req(v.branch as string | undefined, "branch"),
-        mode: req(v.mode as string | undefined, "mode") as "review" | "merge",
+        project: req(v.project, "project"),
+        branch: req(v.branch, "branch"),
+        mode: req(v.mode, "mode") as "review" | "merge",
       });
       break;
     }
     case "collect": {
       const v = opt(rest, { project: { type: "string" }, file: { type: "string" } });
       out = collectFindings(cfg, {
-        project: req(v.project as string | undefined, "project"),
-        file: v.file as string | undefined,
+        project: req(v.project, "project"),
+        file: v.file,
       });
       break;
     }
     case "escalate": {
       const v = opt(rest, { project: { type: "string" }, task: { type: "string" } });
       out = escalateTask(cfg, {
-        project: req(v.project as string | undefined, "project"),
-        task: req(v.task as string | undefined, "task"),
+        project: req(v.project, "project"),
+        task: req(v.task, "task"),
       });
       break;
     }
@@ -162,7 +162,7 @@ async function main(): Promise<number> {
         "dry-run": { type: "boolean" },
       });
       const res = closeRun(cfg, {
-        project: req(v.project as string | undefined, "project"),
+        project: req(v.project, "project"),
         check: Boolean(v.check),
         dryRun: Boolean(v["dry-run"]),
       });
@@ -178,7 +178,7 @@ async function main(): Promise<number> {
         "dry-run": { type: "boolean" },
       });
       const res = cleanupRun(cfg, {
-        project: req(v.project as string | undefined, "project"),
+        project: req(v.project, "project"),
         branches: Boolean(v.branches),
         allBranches: Boolean(v["all-branches"]),
         force: Boolean(v.force),
@@ -207,8 +207,8 @@ async function main(): Promise<number> {
     case "_worker": {
       const v = opt(rest, { "run-dir": { type: "string" }, name: { type: "string" } });
       return await workerMain(
-        req(v["run-dir"] as string | undefined, "run-dir"),
-        req(v.name as string | undefined, "name"),
+        req(v["run-dir"], "run-dir"),
+        req(v.name, "name"),
       );
     }
     case undefined:
