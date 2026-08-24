@@ -84,23 +84,9 @@ it backwards. Planning matters more than typing.
 
 ## Spec document skeleton
 
-The contract with `camerata-plan`:
-
-```markdown
-# <Feature> — Spec
-**Status:** draft | approved (<who>, <date>) · **Target repo:** <path | greenfield> · **Sources:** <brainstorm/report paths>
-
-## Summary                      <!-- 3 sentences: what, for whom, why now -->
-## Goals & success criteria     <!-- testable; each names its check command/test, or [human check] -->
-## Non-goals                    <!-- explicitly out of scope -->
-## Users & scenarios            <!-- actors + key workflows -->
-## Design constraints           <!-- stack, conventions, perf/security/a11y bar -->
-## Data & interfaces            <!-- data-model deltas; exact interface names to freeze -->
-## Human-only work              <!-- P0 discovery/fixtures/secrets · P-Final deploy/migrations -->
-## Risks & open questions
-## Assumptions                  <!-- each marked APPROVED or PENDING -->
-## Decisions log                <!-- grill answers, dated -->
-```
+The contract with `camerata-plan` is `templates/spec.md`, shipped next to this
+skill. Copy it as the starting document; its section comments say what each
+section must contain.
 
 Mapping to `camerata-plan`'s document: Goals & success criteria → plan's
 "Sharpened goal + success criteria (testable)"; Design constraints → plan's

@@ -7,15 +7,7 @@ import { join } from "node:path";
 import type { Config } from "./config.js";
 import { fail } from "./errors.js";
 import { readLedger } from "./ledger.js";
-import { findRunDir, git, readManifest, readRun, validateSlug } from "./run.js";
-
-function branchExists(repo: string, branch: string): boolean {
-  return (
-    git(["-C", repo, "show-ref", "--verify", "--quiet", `refs/heads/${branch}`], {
-      allowFail: true,
-    }).status === 0
-  );
-}
+import { branchExists, findRunDir, git, readManifest, readRun, validateSlug } from "./run.js";
 
 // Diff the worktree against base including untracked files, without touching
 // the worktree's real index (v1's GIT_INDEX_FILE trick).

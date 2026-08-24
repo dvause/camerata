@@ -5,7 +5,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { closeRun, cleanupRun } from "./close.js";
-import { loadConfig } from "./config.js";
+import { loadConfig, type Config } from "./config.js";
 import { dispatchWorker } from "./dispatch.js";
 import { EngineError } from "./errors.js";
 import { escalateTask } from "./escalate.js";
@@ -124,30 +124,22 @@ const TOOLS = [
   },
 ];
 
+const HANDLERS: Record<string, (cfg: Config, a: never) => unknown> = {
+  init_run: initRun,
+  dispatch_worker: dispatchWorker,
+  worker_status: (cfg, a) => workerStatus(cfg, (a as { project: string }).project),
+  wait_workers: waitWorkers,
+  integrate_branch: integrateBranch,
+  collect_findings: collectFindings,
+  escalate_task: escalateTask,
+  close_run: closeRun,
+  cleanup_run: cleanupRun,
+};
+
 async function callTool(name: string, a: Record<string, unknown>): Promise<unknown> {
-  const cfg = loadConfig();
-  switch (name) {
-    case "init_run":
-      return initRun(cfg, a as never);
-    case "dispatch_worker":
-      return dispatchWorker(cfg, a as never);
-    case "worker_status":
-      return workerStatus(cfg, (a as { project: string }).project);
-    case "wait_workers":
-      return waitWorkers(cfg, a as never);
-    case "integrate_branch":
-      return integrateBranch(cfg, a as never);
-    case "collect_findings":
-      return collectFindings(cfg, a as never);
-    case "escalate_task":
-      return escalateTask(cfg, a as never);
-    case "close_run":
-      return closeRun(cfg, a as never);
-    case "cleanup_run":
-      return cleanupRun(cfg, a as never);
-    default:
-      throw new EngineError("E_TOOL", `unknown tool: ${name}`);
-  }
+  const fn = HANDLERS[name];
+  if (!fn) throw new EngineError("E_TOOL", `unknown tool: ${name}`);
+  return fn(loadConfig(), a as never);
 }
 
 export async function runMcp(): Promise<void> {

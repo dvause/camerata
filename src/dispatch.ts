@@ -10,6 +10,7 @@ import {
   appendManifest,
   appendProgress,
   atomicWriteJson,
+  branchExists,
   findRunDir,
   git,
   readManifest,
@@ -83,10 +84,7 @@ export async function dispatchWorker(
   const branch = `agent/${opts.name}`;
   const worktree = join(runDir, `wt-${opts.name}`);
   if (existsSync(worktree)) fail("E_WORKTREE_EXISTS", `worktree already exists: ${worktree}`);
-  const ref = git(["-C", run.repo, "show-ref", "--verify", "--quiet", `refs/heads/${branch}`], {
-    allowFail: true,
-  });
-  if (ref.status === 0) fail("E_BRANCH_EXISTS", `branch already exists: ${branch}`);
+  if (branchExists(run.repo, branch)) fail("E_BRANCH_EXISTS", `branch already exists: ${branch}`);
 
   const check = await driver.check();
   if (!check.available) fail("E_BACKEND_UNAVAILABLE", check.reason ?? `${backend} unavailable`);

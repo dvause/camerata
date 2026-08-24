@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import type { Config } from "./config.js";
-import { EngineError, fail } from "./errors.js";
+import { fail } from "./errors.js";
 
 export interface RunMeta {
   project: string;
@@ -56,6 +56,14 @@ export function git(
     fail("E_GIT", `git ${args.join(" ")} failed: ${(r.stderr ?? "").trim()}`);
   }
   return { status: r.status ?? -1, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
+}
+
+export function branchExists(repo: string, branch: string): boolean {
+  return (
+    git(["-C", repo, "show-ref", "--verify", "--quiet", `refs/heads/${branch}`], {
+      allowFail: true,
+    }).status === 0
+  );
 }
 
 const SLUG = /^[A-Za-z0-9_-][A-Za-z0-9._-]*$/;
@@ -189,8 +197,4 @@ export function initRun(
   }
   appendProgress(runDir, existing ? "run resumed" : "run initialized");
   return { runDir, baseSha };
-}
-
-export function isEngineError(e: unknown): e is EngineError {
-  return e instanceof EngineError;
 }

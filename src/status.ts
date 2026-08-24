@@ -4,7 +4,7 @@ import picomatch from "picomatch";
 import type { Config } from "./config.js";
 import { readLedger } from "./ledger.js";
 import { isAlive } from "./platform.js";
-import { findRunDir, git, readManifest, readRun, type ManifestRow } from "./run.js";
+import { findRunDir, git, readManifest, type ManifestRow } from "./run.js";
 
 export interface WorkerView {
   name: string;
@@ -88,7 +88,6 @@ function diffInfo(runDir: string, row: ManifestRow) {
 
 export function workerStatus(cfg: Config, project: string) {
   const runDir = findRunDir(cfg, project);
-  readRun(runDir); // validates the run exists
   const rows = readManifest(runDir);
   const views = readWorkerViews(runDir).map((view, i) => ({ ...view, ...diffInfo(runDir, rows[i]) }));
   // Ledger rows with no manifest row: dispatch died in preflight, budget consumed.
