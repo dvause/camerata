@@ -52,12 +52,13 @@ export function isTerminal(v: WorkerView): boolean {
   return v.state === "done" || v.state === "failed" || v.stale === true;
 }
 
-// Allow globs, v1 contract: patterns match the full repo-relative path and `*` crosses `/`.
+// Allow globs, v1 contract: patterns match the full repo-relative path;
+// `*` is the only wildcard (it crosses `/`), everything else is literal.
 export function allowRegExp(pat: string): RegExp {
   return new RegExp(`^${pat.replace(/[.*+?^${}()|[\]\\]/g, (c) => (c === "*" ? ".*" : `\\${c}`))}$`);
 }
 
-function scopeViolations(runDir: string, name: string, files: string[]): string[] | null {
+export function scopeViolations(runDir: string, name: string, files: string[]): string[] | null {
   const allowFile = join(runDir, "allow", `${name}.allow`);
   if (!existsSync(allowFile)) return null;
   const matchers = readFileSync(allowFile, "utf8")

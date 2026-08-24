@@ -14,10 +14,11 @@ the contract. It shipped at 0.1.0, and this ADR keeps its *why*.
   needs them, and the engine must not block them.
 - The orchestrator eval harness (`evals/`), deferred until the engine
   stabilizes.
-- `maestro-stats.sh` rollups, `open-pr.sh`, and mutation-check; orchestrators
-  draft PRs with their own GitHub tooling under prepare/confirm discipline,
-  which moves into build playbook prose, and the gate survives as optional
-  build-playbook prose.
+- `maestro-stats.sh` rollups and `open-pr.sh`; orchestrators draft PRs with
+  their own GitHub tooling under the prepare/confirm discipline, which moved
+  into build playbook prose.
+- mutation-check, deferred; its gate survives as optional build-playbook
+  prose.
 - The `/tmp/goal-<project>.md` compatibility symlink.
 - Migration tooling for v1 `runs/` state; v1 stays runnable side by side.
 - Claude-native orchestration primitives (Agent-tool worktrees, Workflow) as
