@@ -27,6 +27,48 @@ npm i -g camerata
 CLI, and codex sandbox availability. On native Windows the codex backend
 refuses and the claude backend carries the run.
 
+### MCP server
+
+The server speaks MCP over **stdio only** (`camerata mcp`). It spawns worker
+processes and manages git worktrees, so it must run on the machine that holds
+the repo, git, and the backend CLIs.
+
+**Local — Claude Code.** The plugin registers the server for you. To wire it up
+by hand instead:
+
+```sh
+claude mcp add camerata -- npx -y camerata mcp
+```
+
+Or commit a project-scoped `.mcp.json` (pin the version to match the plugin):
+
+```json
+{ "mcpServers": { "camerata": { "command": "npx", "args": ["-y", "camerata@0.1.0", "mcp"] } } }
+```
+
+**Local — Codex CLI.** `npx -y camerata setup-codex` copies the skills to
+`~/.agents/skills` and writes this block into `~/.codex/config.toml`
+(`CODEX_HOME` overrides). It rewrites its own block on re-run, so it is safe to
+repeat after an upgrade:
+
+```toml
+[mcp_servers.camerata]
+command = "npx"
+args = ["-y", "camerata@0.1.0", "mcp"]
+```
+
+**Remote.** There is no HTTP or SSE transport — install camerata on whichever
+machine holds the repo and run it there over stdio. To drive a repo on another
+host, tunnel stdio over SSH:
+
+```sh
+claude mcp add camerata -- ssh -T dev-box camerata mcp
+```
+
+Keep that login quiet (`-T`, no banner or MOTD) — anything the remote shell
+prints on stdout corrupts the protocol. Run state lives under the remote
+`~/.camerata` (`CAMERATA_HOME` overrides), not on the orchestrator.
+
 ## Playbooks
 
 Four skills drive the engine. Each is portable `SKILL.md` — the same file works
