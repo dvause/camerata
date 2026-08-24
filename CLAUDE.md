@@ -51,8 +51,8 @@ backend.
 
 `skills/*/SKILL.md` are the orchestrator playbooks — portable files that run
 unchanged on Claude Code and Codex. They are the product's user interface;
-`docs/specs/camerata-v1.md` is the frozen contract behind both them and the
-engine (data-dir layout, tool list, config schema, decisions log).
+README's Reference section is the engine contract (data-dir layout, tool list,
+config schema), and `docs/adr/` holds the decisions log.
 
 ## Invariants worth not breaking
 
