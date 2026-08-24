@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "camerata",
+  "version": "0.1.0",
+  "description": "Multi-agent orchestration engine and playbooks: bounded workers in isolated git worktrees, nothing merged on a worker's self-report.",
+  "author": {
+    "name": "Dave Vause",
+    "email": "dave@vauseware.com"
+  },
+  "homepage": "https://github.com/dvause/camerata",
+  "repository": "https://github.com/dvause/camerata",
+  "license": "Apache-2.0",
+  "keywords": ["orchestration", "agents", "worktree", "mcp"]
+}

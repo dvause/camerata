@@ -73,9 +73,11 @@ config schema), and `docs/adr/` holds the decisions log.
 - **Errors are `EngineError(code, message)`** via `fail()`. Both faces render
   `{code, message}` — never a stack trace. Every refusal names the rule it
   enforced.
-- **Three manifests share one version**: `package.json`,
-  `.claude-plugin/plugin.json`, and the pin in `.mcp.json`. `packaging.test.ts`
-  fails on drift; bump all three together.
+- **Five manifests share one version**: `package.json`,
+  `.claude-plugin/plugin.json`, the pin in `.mcp.json`, and their Agent Plugins
+  twins at the repo root (`plugin.json`, `mcp.json`). The dotted pair is what
+  Claude Code reads; the root pair is the portable spec that Cursor, Copilot,
+  VS Code, and Kiro read. `packaging.test.ts` fails on drift; bump all together.
 - **Anything read at runtime must be in `package.json` `files`** (`dist`,
   `skills`) — the packed-artifact tests are what catch a gap.
 - **No v1 vocabulary in skills.** A test greps `SKILL.md` and templates for

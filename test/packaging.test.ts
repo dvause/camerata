@@ -30,16 +30,26 @@ afterAll(() => {
 });
 
 describe("packaging manifests", () => {
-  it("plugin, marketplace, and the MCP pin all track the package version", () => {
+  it("plugin, marketplace, and both MCP pins all track the package version", () => {
     const { version, name } = readJson("package.json");
+    const pin = ["-y", `${name}@${version}`, "mcp"];
     expect(readJson(".claude-plugin", "plugin.json").version).toBe(version);
-    expect(readJson(".mcp.json").mcpServers.camerata.args).toEqual([
-      "-y",
-      `${name}@${version}`,
-      "mcp",
-    ]);
+    expect(readJson(".mcp.json").mcpServers.camerata.args).toEqual(pin);
+    // Agent Plugins roots: the same two manifests under the spec's names, so a
+    // version bump that misses them ships a stale pin to Cursor/Copilot/Kiro.
+    expect(readJson("plugin.json").version).toBe(version);
+    expect(readJson("mcp.json").mcpServers.camerata.args).toEqual(pin);
     const market = readJson(".claude-plugin", "marketplace.json");
     expect(market.plugins.map((p: { name: string }) => p.name)).toContain(name);
+  });
+
+  it("the Agent Plugins roots carry the schema pins the spec requires", () => {
+    const plugin = readJson("plugin.json");
+    const mcp = readJson("mcp.json");
+    expect(plugin.$schema).toBe("https://agent-plugins.org/schemas/1.0.0/plugin.schema.json");
+    expect(plugin.name).toBe(readJson("package.json").name);
+    expect(mcp.$schema).toBe("https://agent-plugins.org/schemas/1.0.0/mcp.schema.json");
+    expect(mcp.mcpServers.camerata.type).toBe("stdio");
   });
 
   it("the packed artifact ships dist and skills, and no source tree", () => {

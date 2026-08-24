@@ -58,6 +58,10 @@ codex plugin add camerata@camerata
 `codex mcp list` should then show the `camerata` server. `CODEX_HOME` overrides
 where that install lands.
 
+**Local — other Agent Plugins hosts.** Cursor, GitHub Copilot, VS Code, and Kiro
+read the spec manifests at the repo root (`plugin.json`, `mcp.json`). Install
+camerata the way that client installs plugins; it needs nothing camerata-specific.
+
 **Remote.** There is no HTTP or SSE transport — install camerata on whichever
 machine holds the repo and run it there over stdio. To drive a repo on another
 host, tunnel stdio over SSH:
