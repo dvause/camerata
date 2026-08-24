@@ -10,7 +10,6 @@ import { escalateTask } from "./escalate.js";
 import { collectFindings } from "./findings.js";
 import { integrateBranch } from "./integrate.js";
 import { initRun } from "./run.js";
-import { setupCodex } from "./setup-codex.js";
 import { workerStatus } from "./status.js";
 import { waitWorkers } from "./wait.js";
 import { workerMain } from "./_worker.js";
@@ -31,8 +30,6 @@ commands:
   close      --project P [--check] [--dry-run]
   cleanup    --project P [--branches] [--all-branches] [--force] [--dry-run]
   doctor     probe git, both backend CLIs, and codex sandbox support
-  setup-codex  install skills + register the MCP server for the Codex CLI
-             [--dry-run]
   mcp        run the MCP server on stdio
 `;
 
@@ -191,11 +188,6 @@ async function main(): Promise<number> {
       const report = await doctor(cfg);
       console.log(JSON.stringify(report, null, 2));
       return report.ok ? 0 : 1;
-    }
-    case "setup-codex": {
-      const v = opt(rest, { "dry-run": { type: "boolean" } });
-      out = setupCodex({ dryRun: Boolean(v["dry-run"]) });
-      break;
     }
     case "mcp": {
       const { runMcp } = await import("./mcp.js");

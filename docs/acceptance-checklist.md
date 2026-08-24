@@ -63,22 +63,19 @@ scopes without inventing work.
 - [ ] `close_run` exits clean
 - [ ] shared pass criteria above
 
-## E2 — Codex host, and the one pending assumption
+## E2 — Codex host
 
 ```sh
-npx -y camerata@0.1.0 setup-codex
+codex plugin marketplace add dvause/camerata
+codex plugin add camerata@camerata
 ```
 
-The spec's only PENDING assumption is that Codex reads skills from
-`~/.agents/skills`. Verify by hand before running anything:
-
-- [ ] `ls ~/.agents/skills/` shows the four `camerata-*` directories
-- [ ] `~/.codex/config.toml` contains `[mcp_servers.camerata]`
-- [ ] Codex itself lists the skills — not just the files on disk
+- [ ] `codex plugin list` shows `camerata@camerata` installed and enabled
+- [ ] `codex mcp list` shows the `camerata` server
+- [ ] Codex itself lists the four `camerata-*` skills — not just files on disk
 - [ ] Codex connects to the `camerata` MCP server
 
-If Codex does not see them, the convention has shifted. `src/setup-codex.ts`
-owns that mapping and is the only file to patch.
+If Codex does not see the skills, the plugin layout has shifted; see ADR 0003.
 
 Then run the same build as E1. The difference: the orchestrator calls
 `wait_workers` and re-calls on the timeout marker rather than backgrounding the
