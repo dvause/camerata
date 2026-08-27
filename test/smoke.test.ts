@@ -6,6 +6,7 @@ import {
   appendFileSync,
   chmodSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -178,7 +179,12 @@ beforeAll(() => {
   };
   g(["init", "-b", "main"]);
   writeFileSync(join(repo, "README.md"), "target\n");
-  g(["add", "README.md"]);
+  // Ignored deps present in the base repo: the launcher must provision them
+  // into every worktree (sandboxed workers have no network to install).
+  writeFileSync(join(repo, ".gitignore"), "node_modules/\n");
+  mkdirSync(join(repo, "node_modules", "dummy-pkg"), { recursive: true });
+  writeFileSync(join(repo, "node_modules", "dummy-pkg", "index.js"), "module.exports = 1;\n");
+  g(["add", "README.md", ".gitignore"]);
   g(["-c", "user.email=smoke@local", "-c", "user.name=smoke", "commit", "-qm", "initial"]);
 });
 
@@ -214,6 +220,19 @@ describe("engine smoke (hermetic)", () => {
     const d = dispatch("w1", "Create a file. Any file.", ["--commit"]);
     expect(d.status).toBe(0);
     expect(d.json.branch).toBe("agent/w1");
+
+    // deps provisioned into the worktree: a real writable directory, not a
+    // symlink, and invisible to git (the repo's own gitignore covers it)
+    const nm = join(d.json.worktree, "node_modules");
+    expect(lstatSync(nm).isDirectory()).toBe(true);
+    expect(lstatSync(nm).isSymbolicLink()).toBe(false);
+    expect(existsSync(join(nm, "dummy-pkg", "index.js"))).toBe(true);
+    writeFileSync(join(nm, "write-probe.txt"), "writable\n");
+    const wtStatus = spawnSync("git", ["-C", d.json.worktree, "status", "--porcelain"], {
+      encoding: "utf8",
+    });
+    expect(wtStatus.status).toBe(0);
+    expect(wtStatus.stdout).not.toContain("node_modules");
 
     const w = waitFor("w1");
     expect(w.status).toBe(0);
