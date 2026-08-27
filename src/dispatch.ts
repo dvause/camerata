@@ -1,5 +1,13 @@
 import { spawn } from "node:child_process";
-import { closeSync, copyFileSync, existsSync, openSync, statSync } from "node:fs";
+import {
+  closeSync,
+  constants,
+  copyFileSync,
+  cpSync,
+  existsSync,
+  openSync,
+  statSync,
+} from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Config, Loe } from "./config.js";
@@ -33,6 +41,29 @@ export interface DispatchOpts {
   timeoutS?: number;
   gitMode?: string;
   base?: string;
+}
+
+// Workers run sandboxed with no network, so dependencies can never arrive via
+// install; a symlinked node_modules is both sandbox-unwritable (test runners
+// write temp files inside it, and writes resolving outside the worktree are
+// denied) and stageable (a trailing-slash ignore pattern matches a directory,
+// not a symlink). A real copy avoids both. COPYFILE_FICLONE_FORCE is an APFS
+// clonefile — copy-on-write, near-free — with a plain copy as the cross-volume
+// fallback. No commitignore entry is written: the repo's own gitignore covers
+// the directory, and an explicit entry makes the launcher's dot-pathspec
+// staging error on the already-ignored path.
+// ponytail: root node_modules only; nested workspace trees
+// (packages/*/node_modules) are a known ceiling.
+function provisionNodeModules(repo: string, worktree: string, runDir: string): void {
+  const src = join(repo, "node_modules");
+  if (!existsSync(src)) return;
+  const dest = join(worktree, "node_modules");
+  try {
+    cpSync(src, dest, { recursive: true, mode: constants.COPYFILE_FICLONE_FORCE });
+  } catch {
+    cpSync(src, dest, { recursive: true, force: true });
+    appendProgress(runDir, `node_modules clone unsupported (non-APFS?); plain copy for ${dest}`);
+  }
 }
 
 export async function dispatchWorker(
@@ -96,6 +127,7 @@ export async function dispatchWorker(
   const goal = join(runDir, "goals", `${opts.name}.goal.md`);
   copyFileSync(opts.goalFile, goal);
   git(["-C", run.repo, "worktree", "add", "-b", branch, worktree, base]);
+  provisionNodeModules(run.repo, worktree, runDir);
 
   const log = join(runDir, "logs", `${opts.name}.log`);
   appendManifest(runDir, {
